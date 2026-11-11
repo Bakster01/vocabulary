@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Словарик — тренажёр</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f4f6fb;--card:#fff;--text:#1e2330;--muted:#6b7280;
+  --accent:#4f7cff;--accent-d:#3a63d8;--ok:#16a34a;--bad:#dc2626;--border:#e4e7ee;
+}
+html,body{margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.45;padding:24px 16px 64px}
+.app{max-width:720px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+.tabs{display:flex;gap:6px;background:#e9edf7;padding:5px;border-radius:12px;margin-bottom:18px}
+.tabs button{flex:1;border:0;background:transparent;padding:10px;border-radius:9px;
+  font:inherit;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.03em}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;
+  font:inherit;background:#fff;color:var(--text)}
+input[type=text]:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.btn{border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;
+  background:var(--accent);color:#fff;transition:.15s}
+.btn:hover{background:var(--accent-d)}
+.btn.ghost{background:#eef1f9;color:var(--text)}
+.btn.ghost:hover{background:#e2e7f4}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+ul.words{list-style:none;margin:0;padding:0}
+ul.words li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+ul.words li:last-child{border-bottom:0}
+.w-term{font-weight:600}
+.w-arrow{color:var(--muted)}
+.w-tr{color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{border:0;background:transparent;cursor:pointer;font-size:15px;padding:4px 6px;
+  border-radius:6px;color:var(--muted)}
+.icon-btn:hover{background:#f0f2f8;color:var(--text)}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:12px 0}
+.flip-wrap{perspective:1200px;height:230px;margin-bottom:14px}
+.flip{position:relative;width:100%;height:100%;transform-style:preserve-3d;
+  transition:transform .5s;cursor:pointer}
+.flip.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;
+  text-align:center}
+.face.back{transform:rotateY(180deg);background:#f7f9ff}
+.word-big{font-size:30px;font-weight:700;word-break:break-word}
+.hint{font-size:12px;color:var(--muted)}
+.progress{text-align:center;color:var(--muted);font-size:14px;margin-bottom:10px}
+.q-term{font-size:26px;font-weight:700;text-align:center;margin:14px 0 18px}
+.options{display:grid;gap:9px}
+.opt{padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;
+  font:inherit;text-align:left;cursor:pointer;transition:.15s}
+.opt:hover:not(:disabled){border-color:var(--accent);background:#f7f9ff}
+.opt.correct{background:#e8f7ee;border-color:var(--ok);color:#0f7a37;font-weight:600}
+.opt.wrong{background:#fdeaea;border-color:var(--bad);color:#b91c1c}
+.opt:disabled{cursor:default}
+.result{text-align:center;padding:20px 0}
+.result .big{font-size:40px;font-weight:800;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>📚 Словарик</h1>
+  <p class="sub">Тренажёр слов: карточки, тест и личный список</p>
+
+  <div class="tabs">
+    <button data-tab="words" class="active">Слова</button>
+    <button data-tab="cards">Карточки</button>
+    <button data-tab="quiz">Тест</button>
+  </div>
+
+  <!-- СЛОВА -->
+  <section class="panel active" id="panel-words">
+    <div class="box">
+      <div class="row">
+        <div><label for="termInput">Слово / фраза</label>
+          <input id="termInput" type="text" placeholder="например, apple" autocomplete="off"></div>
+        <div><label for="trInput">Перевод</label>
+          <input id="trInput" type="text" placeholder="яблоко" autocomplete="off"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="addBtn">Добавить</button>
+        <button class="btn ghost" id="cancelEditBtn" style="display:none">Отмена</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>Мой список</strong>
+        <span id="countLabel" style="color:var(--muted);font-size:13px"></span>
+      </div>
+      <ul class="words" id="wordList"></ul>
+      <div class="empty" id="emptyMsg">Пока пусто — добавьте первое слово выше</div>
+      <div class="btn-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <button class="btn ghost" id="exportBtn">Экспорт</button>
+        <button class="btn ghost" id="importBtn">Импорт</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+        <button class="btn ghost" id="clearBtn" style="color:var(--bad)">Очистить всё</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- КАРТОЧКИ -->
+  <section class="panel" id="panel-cards">
+    <div id="cardsEmpty" class="box empty">Добавьте хотя бы одно слово в разделе «Слова»</div>
+    <div id="cardsBody" style="display:none">
+      <div class="progress" id="cardProgress"></div>
+      <div class="flip-wrap">
+        <div class="flip" id="flipCard">
+          <div class="face front">
+            <div class="word-big" id="cardFront"></div>
+            <div class="hint">нажмите на карточку</div>
+          </div>
+          <div class="face back">
+            <div class="word-big" id="cardBack"></div>
+            <div class="hint">нажмите, чтобы вернуть</div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn ghost" id="prevBtn">← Назад</button>
+        <button class="btn" id="flipBtn">Перевернуть</button>
+        <button class="btn ghost" id="nextBtn">Вперёд →</button>
+      </div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn ghost" id="shuffleBtn">🔀 Перемешать</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ТЕСТ -->
+  <section class="panel" id="panel-quiz">
+    <div class="box">
+      <div id="quizBody" class="empty">Нажмите «Начать тест»</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn" id="startQuizBtn">Начать тест</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const LS = 'vocabTrainer.v1';
+const $ = s => document.querySelector(s);
+
+let words = [], nextId = 1, editingId = null;
+let deck = [], cardIdx = 0;
+let quiz = null;
+
+const flipCard = $('#flipCard');
+
+/* ---------- хранилище ---------- */
+function save(){
+  try { localStorage.setItem(LS, JSON.stringify({words, nextId})); } catch(e){}
+}
+function seed(){
+  const demo = [["apple","яблоко"],["house","дом"],["to run","бежать"],
+                ["beautiful","красивый"],["friend","друг"]];
+  words = demo.map(([t,r]) => ({id: nextId++, term: t, translation: r}));
+  save();
+}
+function load(){
+  let raw = null;
+  try { raw = localStorage.getItem(LS); } catch(e){}
+  if (raw === null){ seed(); return; }
+  try{
+    const d = JSON.parse(raw);
+    words = Array.isArray(d.words) ? d.words : [];
+    nextId = d.nextId || (words.reduce((m,w)=>Math.max(m, w.id||0), 0) + 1);
+  }catch(e){ words = []; nextId = 1; }
+}
+function shuffle(a){
+  for (let i = a.length-1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------- список слов ---------- */
+function renderWords(){
+  const list = $('#wordList');
+  list.innerHTML = '';
+  words.forEach(w => {
+    const li = document.createElement('li');
+    const t = document.createElement('span'); t.className = 'w-term'; t.textContent = w.term;
+    const a = document.createElement('span'); a.className = 'w-arrow'; a.textContent = '—';
+    const r = document.createElement('span'); r.className = 'w-tr'; r.textContent = w.translation;
+
+    const edit = document.createElement('button');
+    edit.className = 'icon-btn'; edit.textContent = '✎'; edit.title = 'Изменить';
+    edit.onclick = () => startEdit(w.id);
+
+    const del = document.createElement('button');
+    del.className = 'icon-btn'; del.textContent = '🗑'; del.title = 'Удалить';
+    del.onclick = () => {
+      words = words.filter(x => x.id !== w.id);
+      if (editingId === w.id) cancelEdit();
+      save(); renderAll();
+    };
+
+    li.append(t, a, r, edit, del);
+    list.appendChild(li);
+  });
+  $('#emptyMsg').style.display = words.length ? 'none' : 'block';
+  $('#countLabel').textContent = words.length ? 'слов: ' + words.length : '';
+}
+
+function startEdit(id){
+  const w = words.find(x => x.id === id);
+  if (!w) return;
+  editingId = id;
+  $('#termInput').value = w.term;
+  $('#trInput').value = w.translation;
+  $('#addBtn').textContent = 'Сохранить';
+  $('#cancelEditBtn').style.display = '';
+  switchTab('words');
+  $('#termInput').focus();
+}
+function cancelEdit(){
+  editingId = null;
+  $('#termInput').value = '';
+  $('#trInput').value = '';
+  $('#addBtn').textContent = 'Добавить';
+  $('#cancelEditBtn').style.display = 'none';
+}
+
+/* ---------- карточки ---------- */
+function buildDeck(){
+  deck = shuffle(words.map(w => w.id));
+  cardIdx = 0;
+}
+function renderCards(){
+  const has = words.length > 0;
+  $('#cardsEmpty').style.display = has ? 'none' : 'block';
+  $('#cardsBody').style.display = has ? 'block' : 'none';
+  if (!has){ deck = []; cardIdx = 0; return; }
+  if (deck.length !== words.length) buildDeck();
+  renderCard();
+}
+function renderCard(){
+  if (!deck.length) return;
+  if (cardIdx >= deck.length) cardIdx = 0;
+  if (cardIdx < 0) cardIdx = deck.length - 1;
+  let w = words.find(x => x.id === deck[cardIdx]);
+  if (!w){ buildDeck(); w = words.find(x => x.id === deck[cardIdx]); }
+  if (!w) return;
+  $('#cardFront').textContent = w.term;
+  $('#cardBack').textContent = w.translation;
+  $('#cardProgress').textContent = (cardIdx + 1) + ' / ' + deck.length;
+  flipCard.classList.remove('flipped');
+}
+
+/* ---------- тест ---------- */
+function startQuiz(){
+  if (words.length < 2){
+    $('#quizBody').innerHTML = '<div class="empty">Для теста нужно минимум 2 слова</div>';
+    return;
+  }
+  const qs = shuffle(words.slice()).map(w => {
+    const pool = [...new Set(
+      words.filter(x => x.id !== w.id && x.translation !== w.translation)
+           .map(x => x.translation)
+    )];
+    const distractors = shuffle(pool).slice(0, 3);
+    return {term: w.term, answer: w.translation,
+            options: shuffle([w.translation, ...distractors]), done: false};
+  });
+  quiz = {qs, i: 0, score: 0};
+  $('#startQuizBtn').textContent = 'Начать заново';
+  renderQuiz();
+}
+function renderQuiz(){
+  const body = $('#quizBody');
+  if (!quiz){ body.innerHTML = '<div class="empty">Нажмите «Начать тест»</div>'; return; }
+  if (quiz.i >= quiz.qs.length){
+    const pct = Math.round(quiz.score / quiz.qs.length * 100);
+    body.innerHTML = '<div class="result"><div class="big">' +
+      quiz.score + ' / ' + quiz.qs.length + '</div><div>' + pct +
+      '% правильных</div></div>';
+    return;
+  }
+  const q = quiz.qs[quiz.i];
+  body.innerHTML = '';
+  const p = document.createElement('div');
+  p.className = 'progress';
+  p.textContent = 'Вопрос ' + (quiz.i+1) + ' из ' + quiz.qs.length +
+                  ' · правильных: ' + quiz.score;
+  const t = document.createElement('div');
+  t.className = 'q-term'; t.textContent = q.term;
+  const opts = document.createElement('div');
+  opts.className = 'options';
+  q.options.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.textContent = o;
+    b.onclick = () => answerQuiz(b, o, q);
+    opts.appendChild(b);
+  });
+  body.append(p, t, opts);
+}
+function answerQuiz(btn, choice, q){
+  if (q.done) return;
+  q.done = true;
+  const ok = choice === q.answer;
+  if (ok) quiz.score++;
+  [...btn.parentNode.children].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('correct');
+  });
+  if (!ok) btn.classList.add('wrong');
+
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+  row.style.justifyContent = 'center';
+  const nb = document.createElement('button');
+  nb.className = 'btn';
+  nb.textContent = quiz.i + 1 < quiz.qs.length ? 'Дальше →' : 'Результат';
+  nb.onclick = () => { quiz.i++; renderQuiz(); };
+  row.appendChild(nb);
+  $('#quizBody').appendChild(row);
+}
+
+/* ---------- вкладки ---------- */
+function switchTab(name){
+  document.querySelectorAll('.tabs button').forEach(x =>
+    x.classList.toggle('active', x.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p =>
+    p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'cards') renderCards();
+}
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.onclick = () => switchTab(b.dataset.tab);
+});
+
+/* ---------- события ---------- */
+$('#addBtn').onclick = () => {
+  const term = $('#termInput').value.trim();
+  const tr = $('#trInput').value.trim();
+  if (!term || !tr){ alert('Заполните оба поля'); return; }
+
+  const dupe = words.find(w => w.term.toLowerCase() === term.toLowerCase() &&
+                               w.id !== editingId);
+  if (dupe && !confirm('Такое слово уже есть. Всё равно добавить?')) return;
+
+  if (editingId !== null){
+    const w = words.find(x => x.id === editingId);
+    if (w){ w.term = term; w.translation = tr; }
+    cancelEdit();
+  } else {
+    words.push({id: nextId++, term, translation: tr});
+  }
+  $('#termInput').value = '';
+  $('#trInput').value = '';
+  save(); renderAll();
+  $('#termInput').focus();
+};
+$('#cancelEditBtn').onclick = cancelEdit;
+$('#termInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#addBtn').click(); });
+$('#trInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#addBtn').click(); });
+
+flipCard.onclick = () => flipCard.classList.toggle('flipped');
+$('#flipBtn').onclick = () => flipCard.classList.toggle('flipped');
+$('#nextBtn').onclick = () => { cardIdx++; renderCard(); };
+$('#prevBtn').onclick = () => { cardIdx--; renderCard(); };
+$('#shuffleBtn').onclick = () => { buildDeck(); renderCard(); };
+
+$('#startQuizBtn').onclick = startQuiz;
+
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(words, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'slovar.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error('bad');
+      let added = 0;
+      data.forEach(item => {
+        const term = String(item.term || '').trim();
+        const tr = String(item.translation || '').trim();
+        if (!term || !tr) return;
+        const dup = words.some(w => w.term.toLowerCase() === term.toLowerCase());
+        if (dup) return;
+        words.push({id: nextId++, term, translation: tr});
+        added++;
+      });
+      save(); renderAll();
+      alert('Добавлено слов: ' + added);
+    }catch(err){
+      alert('Не удалось прочитать файл (нужен JSON-массив слов)');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+};
+$('#clearBtn').onclick = () => {
+  if (!confirm('Удалить все слова? Действие необратимо.')) return;
+  words = []; deck = []; cardIdx = 0; quiz = null;
+  cancelEdit();
+  $('#startQuizBtn').textContent = 'Начать тест';
+  save(); renderAll(); renderQuiz();
+};
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (!$('#panel-cards').classList.contains('active') || !words.length) return;
+  if (e.key === ' '){ e.preventDefault(); flipCard.classList.toggle('flipped'); }
+  if (e.key === 'ArrowRight'){ cardIdx++; renderCard(); }
+  if (e.key === 'ArrowLeft'){ cardIdx--; renderCard(); }
+});
+
+/* ---------- старт ---------- */
+function renderAll(){ renderWords(); renderCards(); }
+load();
+renderAll();
+renderQuiz();
+</script>
+</body>
+</html>
